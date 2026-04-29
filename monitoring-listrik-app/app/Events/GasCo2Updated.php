@@ -8,7 +8,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class CurrentL1Updated implements ShouldBroadcast
+class GasCo2Updated implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -21,7 +21,7 @@ class CurrentL1Updated implements ShouldBroadcast
 
     public function broadcastOn(): Channel
     {
-        return new Channel('listrik.current.l1');
+        return new Channel('monitoring.gas_co2');
     }
 
     public function broadcastWith(): array
@@ -33,6 +33,6 @@ class CurrentL1Updated implements ShouldBroadcast
 
     public function broadcastAs(): string
     {
-        return 'current_l1.updated';
+        return 'gas_co2.updated';
     }
 }

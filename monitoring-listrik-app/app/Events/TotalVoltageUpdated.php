@@ -3,14 +3,13 @@
 namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
-use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class CurrentL1Updated implements ShouldBroadcast
+class TotalVoltageUpdated implements ShouldBroadcast
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable, SerializesModels;
 
     public $data;
 
@@ -21,7 +20,7 @@ class CurrentL1Updated implements ShouldBroadcast
 
     public function broadcastOn(): Channel
     {
-        return new Channel('listrik.current.l1');
+        return new Channel('listrik.total.voltage');
     }
 
     public function broadcastWith(): array
@@ -33,6 +32,6 @@ class CurrentL1Updated implements ShouldBroadcast
 
     public function broadcastAs(): string
     {
-        return 'current_l1.updated';
+        return 'total_voltage.updated';
     }
 }

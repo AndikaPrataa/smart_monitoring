@@ -4,108 +4,166 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MonitoringLingkungan;
+use App\Services\NotificationService;
+use App\Services\IEQService;
+
 use App\Events\SuhuUpdated;
 use App\Events\KelembapanUpdated;
 use App\Events\Pm25Updated;
 use App\Events\Pm10Updated;
-use App\Events\Eco2Updated;
-use App\Events\TvocUpdated;
+use App\Events\GasCoUpdated;
+use App\Events\GasCo2Updated;
+use App\Events\CahayaUpdated;
+use App\Events\KebisinganUpdated;
 use App\Events\LokasiUpdated;
+use App\Events\IEQUpdated;
+
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class MonitoringLingkunganController extends Controller
 {
-    public function getSuhu(): JsonResponse
+    public function store(Request $request): JsonResponse
     {
-        $data = MonitoringLingkungan::latest('waktu')->first();
-        if ($data) event(new SuhuUpdated($data->suhu));
-        return response()->json([
-            'sensor' => 'suhu', 'unit' => '°C', 'value' => $data?->suhu,
-            'timestamp' => $data?->waktu, 'detail' => 'Temperature (Suhu) sensor'
+        $validated = $request->validate([
+            'suhu' => 'nullable|numeric',
+            'kelembapan' => 'nullable|numeric',
+            'pm25' => 'nullable|numeric',
+            'pm10' => 'nullable|numeric',
+            'gas_co' => 'nullable|numeric',
+            'gas_co2' => 'nullable|numeric',
+            'cahaya' => 'nullable|numeric',
+            'kebisingan' => 'nullable|numeric',
+            'lokasi' => 'nullable|string|max:255',
         ]);
+
+        $data = MonitoringLingkungan::create($validated);
+
+        $ieq = IEQService::calculate($data);
+
+        event(new IEQUpdated($ieq));
+
+        event(new SuhuUpdated($data->suhu));
+        event(new KelembapanUpdated($data->kelembapan));
+        event(new Pm25Updated($data->pm25));
+        event(new Pm10Updated($data->pm10));
+        event(new GasCoUpdated($data->gas_co));
+        event(new GasCo2Updated($data->gas_co2));
+        event(new CahayaUpdated($data->cahaya));
+        event(new KebisinganUpdated($data->kebisingan));
+        event(new LokasiUpdated($data->lokasi));
+
+        $notifications = $this->getAllNotifications($data);
+        $createdNotifications = NotificationService::createMany($notifications);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data monitoring lingkungan berhasil disimpan dan dibroadcast',
+            'data' => $data,
+            'ieq' => $ieq,
+            'notifications' => $createdNotifications,
+        ], 201);
     }
 
-    public function getKelembapan(): JsonResponse
+    public function getIEQ(): JsonResponse
     {
-        $data = MonitoringLingkungan::latest('waktu')->first();
-        if ($data) event(new KelembapanUpdated($data->kelembapan));
-        return response()->json([
-            'sensor' => 'kelembapan', 'unit' => '%', 'value' => $data?->kelembapan,
-            'timestamp' => $data?->waktu, 'detail' => 'Humidity (Kelembapan) sensor'
-        ]);
-    }
+        $data = MonitoringLingkungan::latest()->first();
 
-    public function getPm25(): JsonResponse
-    {
-        $data = MonitoringLingkungan::latest('waktu')->first();
-        if ($data) event(new Pm25Updated($data->pm25));
-        return response()->json([
-            'sensor' => 'pm25', 'unit' => 'µg/m³', 'value' => $data?->pm25,
-            'timestamp' => $data?->waktu, 'detail' => 'PM2.5 (Fine Particulate Matter)'
-        ]);
-    }
-
-    public function getPm10(): JsonResponse
-    {
-        $data = MonitoringLingkungan::latest('waktu')->first();
-        if ($data) event(new Pm10Updated($data->pm10));
-        return response()->json([
-            'sensor' => 'pm10', 'unit' => 'µg/m³', 'value' => $data?->pm10,
-            'timestamp' => $data?->waktu, 'detail' => 'PM10 (Coarse Particulate Matter)'
-        ]);
-    }
-
-    public function getEco2(): JsonResponse
-    {
-        $data = MonitoringLingkungan::latest('waktu')->first();
-        if ($data) event(new Eco2Updated($data->eco2));
-        return response()->json([
-            'sensor' => 'eco2', 'unit' => 'ppm', 'value' => $data?->eco2,
-            'timestamp' => $data?->waktu, 'detail' => 'Equivalent CO2'
-        ]);
-    }
-
-    public function getTvoc(): JsonResponse
-    {
-        $data = MonitoringLingkungan::latest('waktu')->first();
-        if ($data) event(new TvocUpdated($data->tvoc));
-        return response()->json([
-            'sensor' => 'tvoc', 'unit' => 'ppb', 'value' => $data?->tvoc,
-            'timestamp' => $data?->waktu, 'detail' => 'Total Volatile Organic Compounds'
-        ]);
-    }
-
-    public function getLokasi(): JsonResponse
-    {
-        $data = MonitoringLingkungan::latest('waktu')->first();
-        if ($data) event(new LokasiUpdated($data->lokasi));
-        return response()->json([
-            'sensor' => 'lokasi', 'unit' => 'text', 'value' => $data?->lokasi,
-            'timestamp' => $data?->waktu, 'detail' => 'Monitoring Location'
-        ]);
-    }
-
-    public function getAll(): JsonResponse
-    {
-        $data = MonitoringLingkungan::latest('waktu')->first();
-        if ($data) {
-            event(new SuhuUpdated($data->suhu));
-            event(new KelembapanUpdated($data->kelembapan));
-            event(new Pm25Updated($data->pm25));
-            event(new Pm10Updated($data->pm10));
-            event(new Eco2Updated($data->eco2));
-            event(new TvocUpdated($data->tvoc));
-            event(new LokasiUpdated($data->lokasi));
+        if (!$data) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data monitoring lingkungan belum tersedia',
+                'ieq' => null,
+            ], 404);
         }
+
+        $ieq = IEQService::calculate($data);
+
         return response()->json([
-            'type' => 'lingkungan', 'timestamp' => $data?->waktu,
-            'data' => $data
+            'success' => true,
+            'message' => 'Status IEQ berhasil diambil',
+            'data' => $data,
+            'ieq' => $ieq,
         ]);
     }
 
-    public function getHistory(): JsonResponse
+    private function notif($sensor, $value, $unit, $level, $message, $timestamp = null, $lokasi = null): array
     {
-        $data = MonitoringLingkungan::orderBy('waktu', 'desc')->limit(100)->get();
-        return response()->json(['type' => 'lingkungan_history', 'total' => count($data), 'data' => $data]);
+        return [
+            'level' => $level,
+            'status' => 'aktif',
+            'kategori' => 'lingkungan',
+            'sensor' => $sensor,
+            'title' => ucfirst($level),
+            'value' => $value,
+            'unit' => $unit,
+            'message' => $message,
+            'lokasi' => $lokasi ?? 'Ruang Admin',
+            'timestamp' => $timestamp,
+        ];
+    }
+
+    private function getNotification($sensor, $value, $timestamp = null, $lokasi = null): ?array
+    {
+        if ($value === null) return null;
+
+        $value = (float) $value;
+
+        return match ($sensor) {
+            'suhu' => $value < 20
+                ? $this->notif('suhu', $value, '°C', 'waspada', 'Suhu di bawah normal', $timestamp, $lokasi)
+                : ($value > 29
+                    ? $this->notif('suhu', $value, '°C', 'bahaya', 'Suhu terlalu tinggi!', $timestamp, $lokasi)
+                    : null),
+
+            'kelembapan' => $value < 40
+                ? $this->notif('kelembapan', $value, '%', 'waspada', 'Kelembapan rendah', $timestamp, $lokasi)
+                : ($value > 60
+                    ? $this->notif('kelembapan', $value, '%', 'bahaya', 'Kelembapan tinggi!', $timestamp, $lokasi)
+                    : null),
+
+            'pm25' => $value > 35
+                ? $this->notif('pm25', $value, 'µg/m³', 'bahaya', 'PM2.5 tinggi!', $timestamp, $lokasi)
+                : null,
+
+            'pm10' => $value > 70
+                ? $this->notif('pm10', $value, 'µg/m³', 'bahaya', 'PM10 tinggi!', $timestamp, $lokasi)
+                : null,
+
+            'gas_co' => $value > 10000
+                ? $this->notif('gas_co', $value, 'ppm', 'bahaya', 'Gas CO berbahaya!', $timestamp, $lokasi)
+                : null,
+
+            'gas_co2' => $value > 1
+                ? $this->notif('gas_co2', $value, 'ppm', 'bahaya', 'Gas CO2 tinggi!', $timestamp, $lokasi)
+                : null,
+
+            'cahaya' => $value < 100
+                ? $this->notif('cahaya', $value, 'lux', 'waspada', 'Cahaya kurang', $timestamp, $lokasi)
+                : null,
+
+            'kebisingan' => $value > 45
+                ? $this->notif('kebisingan', $value, 'dB', 'bahaya', 'Kebisingan tinggi!', $timestamp, $lokasi)
+                : null,
+
+            default => null,
+        };
+    }
+
+    private function getAllNotifications($data): array
+    {
+        $timestamp = $data?->waktu;
+        $lokasi = $data?->lokasi ?? 'Ruang Admin';
+
+        return array_values(array_filter([
+            $this->getNotification('suhu', $data?->suhu, $timestamp, $lokasi),
+            $this->getNotification('kelembapan', $data?->kelembapan, $timestamp, $lokasi),
+            $this->getNotification('pm25', $data?->pm25, $timestamp, $lokasi),
+            $this->getNotification('pm10', $data?->pm10, $timestamp, $lokasi),
+            $this->getNotification('gas_co', $data?->gas_co, $timestamp, $lokasi),
+            $this->getNotification('gas_co2', $data?->gas_co2, $timestamp, $lokasi),
+            $this->getNotification('cahaya', $data?->cahaya, $timestamp, $lokasi),
+            $this->getNotification('kebisingan', $data?->kebisingan, $timestamp, $lokasi),
+        ]));
     }
 }
