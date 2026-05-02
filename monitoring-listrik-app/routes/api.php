@@ -2,14 +2,17 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\MonitoringLingkunganController;
-use App\Http\Controllers\Api\ListrikController;
-use App\Http\Controllers\Api\DayaController;
+use App\Models\Notification;
+
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AdminUserController;
+use App\Http\Controllers\Api\ListrikController;
+use App\Http\Controllers\Api\DayaController;
+use App\Http\Controllers\Api\MonitoringLingkunganController;
+use App\Http\Controllers\Api\ChartController;
+
 use App\Http\Controllers\Api\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\Api\Technician\NotificationController as TechnicianNotificationController;
-use App\Models\Notification;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,51 +29,64 @@ Route::prefix('auth')->group(function () {
     });
 });
 
+/*
+|--------------------------------------------------------------------------
+| USER LOGIN
+|--------------------------------------------------------------------------
+*/
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user();
+});
+
+/*
+|--------------------------------------------------------------------------
+| ADMIN
+|--------------------------------------------------------------------------
+*/
 Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users.index');
     Route::post('/users', [AdminUserController::class, 'store'])->name('admin.users.store');
+    Route::get('/teknisi', [AdminUserController::class, 'teknisi'])->name('admin.users.teknisi');
+
+    Route::get('/notifications', [AdminNotificationController::class, 'index'])->name('admin.notifications.index');
+    Route::get('/notifications/{id}', [AdminNotificationController::class, 'show'])->name('admin.notifications.show');
+    Route::post('/notifications/{id}/assign', [AdminNotificationController::class, 'assign'])->name('admin.notifications.assign');
 });
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-
-Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
-    Route::get('/users', [AdminUserController::class, 'index']);
-    Route::post('/users', [AdminUserController::class, 'store']);
-
-    Route::get('/teknisi', [AdminUserController::class, 'teknisi']);
+/*
+|--------------------------------------------------------------------------
+| TECHNICIAN
+|--------------------------------------------------------------------------
+*/
+Route::middleware('auth:sanctum')->prefix('technician')->group(function () {
+    Route::get('/notifications', [TechnicianNotificationController::class, 'index'])->name('technician.notifications.index');
+    Route::get('/notifications/{id}', [TechnicianNotificationController::class, 'show'])->name('technician.notifications.show');
+    Route::post('/notifications/{id}/complete', [TechnicianNotificationController::class, 'complete'])->name('technician.notifications.complete');
 });
-Route::middleware(['auth:sanctum'])->prefix('technician')->group(function () {
-    Route::get('/notifications', [TechnicianNotificationController::class, 'index']);
-    Route::get('/notifications/{id}', [TechnicianNotificationController::class, 'show']);
-    Route::post('/notifications/{id}/complete', [TechnicianNotificationController::class, 'complete']);
-});
+
 /*
 |--------------------------------------------------------------------------
 | MONITORING LINGKUNGAN
 |--------------------------------------------------------------------------
 */
 Route::prefix('monitoring')->group(function () {
+    Route::post('/store', [MonitoringLingkunganController::class, 'store'])->name('monitoring.store');
 
-    Route::post('/store', [MonitoringLingkunganController::class, 'store']);
+    Route::get('/suhu', [MonitoringLingkunganController::class, 'getSuhu'])->name('monitoring.suhu');
+    Route::get('/kelembapan', [MonitoringLingkunganController::class, 'getKelembapan'])->name('monitoring.kelembapan');
+    Route::get('/pm25', [MonitoringLingkunganController::class, 'getPm25'])->name('monitoring.pm25');
+    Route::get('/pm10', [MonitoringLingkunganController::class, 'getPm10'])->name('monitoring.pm10');
+    Route::get('/gas-co', [MonitoringLingkunganController::class, 'getGasCo'])->name('monitoring.gas_co');
+    Route::get('/gas-co2', [MonitoringLingkunganController::class, 'getGasCo2'])->name('monitoring.gas_co2');
+    Route::get('/tvoc', [MonitoringLingkunganController::class, 'getTvoc'])->name('monitoring.tvoc');
+    Route::get('/cahaya', [MonitoringLingkunganController::class, 'getCahaya'])->name('monitoring.cahaya');
+    Route::get('/kebisingan', [MonitoringLingkunganController::class, 'getKebisingan'])->name('monitoring.kebisingan');
+    Route::get('/lokasi', [MonitoringLingkunganController::class, 'getLokasi'])->name('monitoring.lokasi');
 
-    Route::get('/suhu', [MonitoringLingkunganController::class, 'getSuhu']);
-    Route::get('/kelembapan', [MonitoringLingkunganController::class, 'getKelembapan']);
-    Route::get('/pm25', [MonitoringLingkunganController::class, 'getPm25']);
-    Route::get('/pm10', [MonitoringLingkunganController::class, 'getPm10']);
-    Route::get('/gas-co', [MonitoringLingkunganController::class, 'getGasCo']);
-    Route::get('/gas-co2', [MonitoringLingkunganController::class, 'getGasCo2']);
-    Route::get('/cahaya', [MonitoringLingkunganController::class, 'getCahaya']);
-    Route::get('/kebisingan', [MonitoringLingkunganController::class, 'getKebisingan']);
-    Route::get('/lokasi', [MonitoringLingkunganController::class, 'getLokasi']);
-
-    Route::get('/ieq', [MonitoringLingkunganController::class, 'getIEQ']);
-
-    Route::get('/all', [MonitoringLingkunganController::class, 'getAll']);
-    Route::get('/history', [MonitoringLingkunganController::class, 'getHistory']);
+    Route::get('/ieq', [MonitoringLingkunganController::class, 'getIEQ'])->name('monitoring.ieq');
+    Route::get('/all', [MonitoringLingkunganController::class, 'getAll'])->name('monitoring.all');
+    Route::get('/history', [MonitoringLingkunganController::class, 'getHistory'])->name('monitoring.history');
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -78,32 +94,30 @@ Route::prefix('monitoring')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::prefix('listrik')->group(function () {
+    Route::post('/store', [ListrikController::class, 'store'])->name('listrik.store');
 
-    Route::post('/store', [ListrikController::class, 'store']);
+    Route::get('/voltage-l1l2', [ListrikController::class, 'getVoltageL1L2'])->name('listrik.voltage_l1l2');
+    Route::get('/voltage-l2l3', [ListrikController::class, 'getVoltageL2L3'])->name('listrik.voltage_l2l3');
+    Route::get('/voltage-l3l1', [ListrikController::class, 'getVoltageL3L1'])->name('listrik.voltage_l3l1');
 
-    Route::get('/voltage-l1l2', [ListrikController::class, 'getVoltageL1L2']);
-    Route::get('/voltage-l2l3', [ListrikController::class, 'getVoltageL2L3']);
-    Route::get('/voltage-l3l1', [ListrikController::class, 'getVoltageL3L1']);
+    Route::get('/voltage-l1n', [ListrikController::class, 'getVoltageL1N'])->name('listrik.voltage_l1n');
+    Route::get('/voltage-l2n', [ListrikController::class, 'getVoltageL2N'])->name('listrik.voltage_l2n');
+    Route::get('/voltage-l3n', [ListrikController::class, 'getVoltageL3N'])->name('listrik.voltage_l3n');
 
-    Route::get('/voltage-l1n', [ListrikController::class, 'getVoltageL1N']);
-    Route::get('/voltage-l2n', [ListrikController::class, 'getVoltageL2N']);
-    Route::get('/voltage-l3n', [ListrikController::class, 'getVoltageL3N']);
+    Route::get('/current-l1', [ListrikController::class, 'getCurrentL1'])->name('listrik.current_l1');
+    Route::get('/current-l2', [ListrikController::class, 'getCurrentL2'])->name('listrik.current_l2');
+    Route::get('/current-l3', [ListrikController::class, 'getCurrentL3'])->name('listrik.current_l3');
+    Route::get('/current-n', [ListrikController::class, 'getCurrentN'])->name('listrik.current_n');
 
-    Route::get('/current-l1', [ListrikController::class, 'getCurrentL1']);
-    Route::get('/current-l2', [ListrikController::class, 'getCurrentL2']);
-    Route::get('/current-l3', [ListrikController::class, 'getCurrentL3']);
-    Route::get('/current-n', [ListrikController::class, 'getCurrentN']);
+    Route::get('/total-voltage', [ListrikController::class, 'getTotalVoltage'])->name('listrik.total_voltage');
+    Route::get('/total-current', [ListrikController::class, 'getTotalCurrent'])->name('listrik.total_current');
 
-    Route::get('/total-voltage', [ListrikController::class, 'getTotalVoltage']);
-    Route::get('/total-current', [ListrikController::class, 'getTotalCurrent']);
+    Route::get('/frecuency', [ListrikController::class, 'getFrecuency'])->name('listrik.frecuency');
+    Route::get('/power-factor', [ListrikController::class, 'getPowerFactor'])->name('listrik.power_factor');
 
-    Route::get('/frecuency', [ListrikController::class, 'getFrecuency']);
-    Route::get('/power-factor', [ListrikController::class, 'getPowerFactor']);
-
-    Route::get('/all', [ListrikController::class, 'getAll']);
-    Route::get('/history', [ListrikController::class, 'getHistory']);
+    Route::get('/all', [ListrikController::class, 'getAll'])->name('listrik.all');
+    Route::get('/history', [ListrikController::class, 'getHistory'])->name('listrik.history');
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -111,55 +125,51 @@ Route::prefix('listrik')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::prefix('daya')->group(function () {
+    Route::post('/store', [DayaController::class, 'store'])->name('daya.store');
 
-    Route::post('/store', [DayaController::class, 'store']);
+    Route::get('/active-power-r', [DayaController::class, 'getActivePowerR'])->name('daya.active_power_r');
+    Route::get('/active-power-s', [DayaController::class, 'getActivePowerS'])->name('daya.active_power_s');
+    Route::get('/active-power-t', [DayaController::class, 'getActivePowerT'])->name('daya.active_power_t');
 
-    Route::get('/estimasi-harian', [DayaController::class, 'getEstimasiHarian']);
-    Route::get('/estimasi-bulanan', [DayaController::class, 'getEstimasiBulanan']);
-    Route::get('/estimasi-tahunan', [DayaController::class, 'getEstimasiTahunan']);
+    Route::get('/reactive-power-r', [DayaController::class, 'getReactivePowerR'])->name('daya.reactive_power_r');
+    Route::get('/reactive-power-s', [DayaController::class, 'getReactivePowerS'])->name('daya.reactive_power_s');
+    Route::get('/reactive-power-t', [DayaController::class, 'getReactivePowerT'])->name('daya.reactive_power_t');
 
-    Route::get('/active-power-r', [DayaController::class, 'getActivePowerR']);
-    Route::get('/active-power-s', [DayaController::class, 'getActivePowerS']);
-    Route::get('/active-power-t', [DayaController::class, 'getActivePowerT']);
+    Route::get('/apparent-power-r', [DayaController::class, 'getApparentPowerR'])->name('daya.apparent_power_r');
+    Route::get('/apparent-power-s', [DayaController::class, 'getApparentPowerS'])->name('daya.apparent_power_s');
+    Route::get('/apparent-power-t', [DayaController::class, 'getApparentPowerT'])->name('daya.apparent_power_t');
+
     Route::get('/total-active-power', [DayaController::class, 'getTotalActivePower'])->name('daya.total_active_power');
-    Route::get('/reactive-power-r', [DayaController::class, 'getReactivePowerR']);
-    Route::get('/reactive-power-s', [DayaController::class, 'getReactivePowerS']);
-    Route::get('/reactive-power-t', [DayaController::class, 'getReactivePowerT']);
+    Route::get('/total-energi', [DayaController::class, 'getTotalEnergi'])->name('daya.total_energi');
+    Route::get('/estimasi', [DayaController::class, 'getEstimasi'])->name('daya.estimasi');
 
-    Route::get('/apparent-power-r', [DayaController::class, 'getApparentPowerR']);
-    Route::get('/apparent-power-s', [DayaController::class, 'getApparentPowerS']);
-    Route::get('/apparent-power-t', [DayaController::class, 'getApparentPowerT']);
-
-    Route::get('/all', [DayaController::class, 'getAll']);
-    Route::get('/history', [DayaController::class, 'getHistory']);
+    Route::get('/all', [DayaController::class, 'getAll'])->name('daya.all');
+    Route::get('/history', [DayaController::class, 'getHistory'])->name('daya.history');
 });
-
 
 /*
 |--------------------------------------------------------------------------
-| NOTIFICATIONS (🔥 INI YANG KAMU BUTUH)
+| CHART
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum'])->prefix('technician')->group(function () {
-    Route::get('/notifications', [TechnicianNotificationController::class, 'index']);
-    Route::get('/notifications/{id}', [TechnicianNotificationController::class, 'show']);
-    Route::post('/notifications/{id}/complete', [TechnicianNotificationController::class, 'complete']);
+Route::prefix('chart')->group(function () {
+    Route::get('/monitoring', [ChartController::class, 'monitoring'])->name('chart.monitoring');
+    Route::get('/listrik', [ChartController::class, 'listrik'])->name('chart.listrik');
+    Route::get('/daya', [ChartController::class, 'daya'])->name('chart.daya');
 });
 
-Route::prefix('notifications')->group(function () {
-
-    // Ambil semua notif
-    Route::get('/', function () {
-        return Notification::orderBy('created_at', 'desc')->get();
-    });
-
-});
-
-Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
-    Route::get('/notifications', [AdminNotificationController::class, 'index']);
-    Route::get('/notifications/{id}', [AdminNotificationController::class, 'show']);
-    Route::post('/notifications/{id}/assign', [AdminNotificationController::class, 'assign']);
-});
+/*
+|--------------------------------------------------------------------------
+| NOTIFICATIONS PUBLIC / DEBUG
+|--------------------------------------------------------------------------
+| Catatan:
+| Route ini hanya untuk cek cepat semua notifikasi.
+| Untuk sistem final, sebaiknya endpoint notifikasi tetap lewat admin/technician.
+|--------------------------------------------------------------------------
+*/
+Route::get('/notifications', function () {
+    return Notification::orderBy('created_at', 'desc')->get();
+})->name('notifications.public');
 
 /*
 |--------------------------------------------------------------------------
@@ -171,22 +181,56 @@ Route::get('/channels', function () {
         'status' => 'Broadcasting channels ready',
         'channels' => [
             'monitoring' => [
-                'suhu','kelembapan','pm25','pm10','gas_co','gas_co2','cahaya','kebisingan','lokasi'
+                'monitoring.suhu',
+                'monitoring.kelembapan',
+                'monitoring.pm25',
+                'monitoring.pm10',
+                'monitoring.gas_co',
+                'monitoring.gas_co2',
+                'monitoring.tvoc',
+                'monitoring.cahaya',
+                'monitoring.kebisingan',
+                'monitoring.lokasi',
+                'monitoring.ieq',
             ],
             'listrik' => [
-                'voltage_l1l2','voltage_l2l3','voltage_l3l1',
-                'voltage_l1n','voltage_l2n','voltage_l3n',
-                'current_l1','current_l2','current_l3','current_n',
-                'frecuency','power_factor'
+                'listrik.voltage.l1l2',
+                'listrik.voltage.l2l3',
+                'listrik.voltage.l3l1',
+                'listrik.voltage.l1n',
+                'listrik.voltage.l2n',
+                'listrik.voltage.l3n',
+                'listrik.current.l1',
+                'listrik.current.l2',
+                'listrik.current.l3',
+                'listrik.current.n',
+                'listrik.total.voltage',
+                'listrik.total.current',
+                'listrik.frecuency',
+                'listrik.power_factor',
             ],
             'daya' => [
-                'active_power_r','active_power_s','active_power_t',
-                'reactive_power_r','reactive_power_s','reactive_power_t',
-                'apparent_power_r','apparent_power_s','apparent_power_t'
+                'daya.active.r',
+                'daya.active.s',
+                'daya.active.t',
+                'daya.reactive.r',
+                'daya.reactive.s',
+                'daya.reactive.t',
+                'daya.apparent.r',
+                'daya.apparent.s',
+                'daya.apparent.t',
+                'daya',
+                'daya.biaya',
             ],
             'notification' => [
-                'notification.updated'
-            ]
+                'notification.admin',
+                'notification.technician.{id}',
+            ],
+            'chart_api' => [
+                'api/chart/monitoring',
+                'api/chart/listrik',
+                'api/chart/daya',
+            ],
         ],
     ]);
-});
+})->name('channels.info');

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Laravel Reverb</title>
+</head>
+<body>
+    <h2>Test Laravel Reverb WebSocket</h2>
+
+    <p>Status: <span id="status">Connecting...</span></p>
+
+    <h3>Log:</h3>
+    <pre id="log"></pre>
+
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+
+    <script>
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+
+        function addLog(message, data = null) {
+            const time = new Date().toLocaleTimeString();
+            log.textContent += `[${time}] ${message}\n`;
+
+            if (data) {
+                log.textContent += JSON.stringify(data, null, 2) + "\n\n";
+            }
+        }
+
+        const pusher = new Pusher('efksfxfxxfrzuetobo5f', {
+            wsHost: '192.168.101.75',
+            wsPort: 8080,
+            forceTLS: false,
+            encrypted: false,
+            disableStats: true,
+            enabledTransports: ['ws'],
+            cluster: 'mt1'
+        });
+
+        pusher.connection.bind('connected', () => {
+            status.textContent = 'Connected';
+            addLog('WebSocket connected');
+        });
+
+        pusher.connection.bind('error', (err) => {
+            status.textContent = 'Error';
+            addLog('WebSocket error', err);
+        });
+
+        pusher.connection.bind('disconnected', () => {
+            status.textContent = 'Disconnected';
+            addLog('WebSocket disconnected');
+        });
+
+        // =========================
+        // MONITORING LINGKUNGAN
+        // =========================
+
+        pusher.subscribe('monitoring.suhu')
+            .bind('suhu.updated', function(data) {
+                addLog('Received suhu.updated', data);
+            });
+
+        pusher.subscribe('monitoring.kelembapan')
+            .bind('kelembapan.updated', function(data) {
+                addLog('Received kelembapan.updated', data);
+            });
+
+        pusher.subscribe('monitoring.pm25')
+            .bind('pm25.updated', function(data) {
+                addLog('Received pm25.updated', data);
+            });
+
+        pusher.subscribe('monitoring.pm10')
+            .bind('pm10.updated', function(data) {
+                addLog('Received pm10.updated', data);
+            });
+
+        pusher.subscribe('monitoring.gas_co')
+            .bind('gas_co.updated', function(data) {
+                addLog('Received gas_co.updated', data);
+            });
+
+        pusher.subscribe('monitoring.gas_co2')
+            .bind('gas_co2.updated', function(data) {
+                addLog('Received gas_co2.updated', data);
+            });
+
+        pusher.subscribe('monitoring.tvoc')
+            .bind('tvoc.updated', function(data) {
+                addLog('Received tvoc.updated', data);
+            });
+
+        pusher.subscribe('monitoring.cahaya')
+            .bind('cahaya.updated', function(data) {
+                addLog('Received cahaya.updated', data);
+            });
+
+        pusher.subscribe('monitoring.kebisingan')
+            .bind('kebisingan.updated', function(data) {
+                addLog('Received kebisingan.updated', data);
+            });
+
+        pusher.subscribe('monitoring.lokasi')
+            .bind('lokasi.updated', function(data) {
+                addLog('Received lokasi.updated', data);
+            });
+
+        pusher.subscribe('monitoring.ieq')
+            .bind('ieq.updated', function(data) {
+                addLog('Received ieq.updated', data);
+            });
+
+        // =========================
+        // LISTRIK
+        // =========================
+
+        pusher.subscribe('listrik.voltage.l1l2')
+            .bind('voltage_l1l2.updated', function(data) {
+                addLog('Received voltage_l1l2.updated', data);
+            });
+
+        pusher.subscribe('listrik.voltage.l2l3')
+            .bind('voltage_l2l3.updated', function(data) {
+                addLog('Received voltage_l2l3.updated', data);
+            });
+
+        pusher.subscribe('listrik.voltage.l3l1')
+            .bind('voltage_l3l1.updated', function(data) {
+                addLog('Received voltage_l3l1.updated', data);
+            });
+
+        pusher.subscribe('listrik.voltage.l1n')
+            .bind('voltage_l1n.updated', function(data) {
+                addLog('Received voltage_l1n.updated', data);
+            });
+
+        pusher.subscribe('listrik.voltage.l2n')
+            .bind('voltage_l2n.updated', function(data) {
+                addLog('Received voltage_l2n.updated', data);
+            });
+
+        pusher.subscribe('listrik.voltage.l3n')
+            .bind('voltage_l3n.updated', function(data) {
+                addLog('Received voltage_l3n.updated', data);
+            });
+
+        pusher.subscribe('listrik.current.l1')
+            .bind('current_l1.updated', function(data) {
+                addLog('Received current_l1.updated', data);
+            });
+
+        pusher.subscribe('listrik.current.l2')
+            .bind('current_l2.updated', function(data) {
+                addLog('Received current_l2.updated', data);
+            });
+
+        pusher.subscribe('listrik.current.l3')
+            .bind('current_l3.updated', function(data) {
+                addLog('Received current_l3.updated', data);
+            });
+
+        pusher.subscribe('listrik.current.n')
+            .bind('current_n.updated', function(data) {
+                addLog('Received current_n.updated', data);
+            });
+
+        pusher.subscribe('listrik.frecuency')
+            .bind('frecuency.updated', function(data) {
+                addLog('Received frecuency.updated', data);
+            });
+
+        pusher.subscribe('listrik.power_factor')
+            .bind('power_factor.updated', function(data) {
+                addLog('Received power_factor.updated', data);
+            });
+
+        pusher.subscribe('listrik.total.voltage')
+            .bind('total_voltage.updated', function(data) {
+                addLog('Received total_voltage.updated', data);
+            });
+
+        pusher.subscribe('listrik.total.current')
+            .bind('total_current.updated', function(data) {
+                addLog('Received total_current.updated', data);
+            });
+
+        // =========================
+        // DAYA
+        // =========================
+
+        pusher.subscribe('daya.active.r')
+            .bind('active_power_r.updated', function(data) {
+                addLog('Received active_power_r.updated', data);
+            });
+
+        pusher.subscribe('daya.active.s')
+            .bind('active_power_s.updated', function(data) {
+                addLog('Received active_power_s.updated', data);
+            });
+
+        pusher.subscribe('daya.active.t')
+            .bind('active_power_t.updated', function(data) {
+                addLog('Received active_power_t.updated', data);
+            });
+
+        pusher.subscribe('daya.reactive.r')
+            .bind('reactive_power_r.updated', function(data) {
+                addLog('Received reactive_power_r.updated', data);
+            });
+
+        pusher.subscribe('daya.reactive.s')
+            .bind('reactive_power_s.updated', function(data) {
+                addLog('Received reactive_power_s.updated', data);
+            });
+
+        pusher.subscribe('daya.reactive.t')
+            .bind('reactive_power_t.updated', function(data) {
+                addLog('Received reactive_power_t.updated', data);
+            });
+
+        pusher.subscribe('daya.apparent.r')
+            .bind('apparent_power_r.updated', function(data) {
+                addLog('Received apparent_power_r.updated', data);
+            });
+
+        pusher.subscribe('daya.apparent.s')
+            .bind('apparent_power_s.updated', function(data) {
+                addLog('Received apparent_power_s.updated', data);
+            });
+
+        pusher.subscribe('daya.apparent.t')
+            .bind('apparent_power_t.updated', function(data) {
+                addLog('Received apparent_power_t.updated', data);
+            });
+
+        pusher.subscribe('daya')
+            .bind('daya.updated', function(data) {
+                addLog('Received daya.updated', data);
+            });
+
+        pusher.subscribe('daya.biaya')
+            .bind('daya.biaya.updated', function(data) {
+                addLog('Received daya.biaya.updated', data);
+            });
+
+        pusher.subscribe('monitoring.history')
+    .bind('monitoring.history.updated', function(data) {
+        addLog('Received monitoring.history.updated', data);
+    });
+
+pusher.subscribe('listrik.history')
+    .bind('listrik.history.updated', function(data) {
+        addLog('Received listrik.history.updated', data);
+    });
+
+pusher.subscribe('daya.history')
+    .bind('daya.history.updated', function(data) {
+        addLog('Received daya.history.updated', data);
+    });
+    </script>
+</body>
+</html>

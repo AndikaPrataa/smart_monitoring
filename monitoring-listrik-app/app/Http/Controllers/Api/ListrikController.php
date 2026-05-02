@@ -20,7 +20,9 @@ use App\Events\FrecuencyUpdated;
 use App\Events\PowerFactorUpdated;
 use App\Events\TotalVoltageUpdated;
 use App\Events\TotalCurrentUpdated;
+use App\Events\ListrikHistoryUpdated;
 
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -42,6 +44,13 @@ class ListrikController extends Controller
             'frecuency' => 'nullable|numeric',
             'power_factor' => 'nullable|numeric',
         ]);
+
+        if (empty(array_filter($validated, fn ($value) => $value !== null && $value !== ''))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Minimal satu data listrik harus diisi.',
+            ], 422);
+        }
 
         $data = RsptdDataBaru::create($validated);
 
@@ -72,12 +81,37 @@ class ListrikController extends Controller
             $data->current_l3,
         ])->filter(fn ($value) => $value !== null)->sum();
 
-        event(new TotalVoltageUpdated(round((float) $totalVoltage, 2)));
-        event(new TotalCurrentUpdated(round((float) $totalCurrent, 2)));
+        $totalVoltage = round((float) $totalVoltage, 2);
+        $totalCurrent = round((float) $totalCurrent, 2);
+
+        event(new TotalVoltageUpdated($totalVoltage));
+        event(new TotalCurrentUpdated($totalCurrent));
+
+        event(new ListrikHistoryUpdated([
+            'id' => $data->id,
+            'timestamp' => $this->formatTimestamp($data->time_stamp),
+
+            'voltage_l1l2' => $data->voltage_l1l2,
+            'voltage_l2l3' => $data->voltage_l2l3,
+            'voltage_l3l1' => $data->voltage_l3l1,
+
+            'voltage_l1n' => $data->voltage_l1n,
+            'voltage_l2n' => $data->voltage_l2n,
+            'voltage_l3n' => $data->voltage_l3n,
+
+            'current_l1' => $data->current_l1,
+            'current_l2' => $data->current_l2,
+            'current_l3' => $data->current_l3,
+            'current_n' => $data->current_n,
+
+            'frecuency' => $data->frecuency,
+            'power_factor' => $data->power_factor,
+
+            'total_voltage' => $totalVoltage,
+            'total_current' => $totalCurrent,
+        ]));
 
         $notifications = $this->getAllNotifications($data, $totalVoltage, $totalCurrent);
-
-        // Simpan notifikasi tanpa duplikat aktif/proses
         $createdNotifications = NotificationService::createMany($notifications);
 
         return response()->json([
@@ -85,8 +119,8 @@ class ListrikController extends Controller
             'message' => 'Data listrik berhasil disimpan dan dibroadcast',
             'data' => $data,
             'total' => [
-                'total_voltage' => round((float) $totalVoltage, 2),
-                'total_current' => round((float) $totalCurrent, 2),
+                'total_voltage' => $totalVoltage,
+                'total_current' => $totalCurrent,
             ],
             'notifications' => $createdNotifications,
         ], 201);
@@ -126,105 +160,41 @@ class ListrikController extends Controller
         switch ($sensor) {
             case 'total_voltage':
                 if ($value < 198) {
-                    return $this->notif(
-                        'total_voltage',
-                        $value,
-                        'V',
-                        'waspada',
-                        'Tegangan berada di bawah batas normal.',
-                        $timestamp,
-                        $lokasi
-                    );
+                    return $this->notif('total_voltage', $value, 'V', 'waspada', 'Tegangan berada di bawah batas normal.', $timestamp, $lokasi);
                 }
 
                 if ($value > 242) {
-                    return $this->notif(
-                        'total_voltage',
-                        $value,
-                        'V',
-                        'bahaya',
-                        'Tegangan melebihi batas normal.',
-                        $timestamp,
-                        $lokasi
-                    );
+                    return $this->notif('total_voltage', $value, 'V', 'bahaya', 'Tegangan melebihi batas normal.', $timestamp, $lokasi);
                 }
                 break;
 
             case 'total_current':
                 if ($value < 1) {
-                    return $this->notif(
-                        'total_current',
-                        $value,
-                        'A',
-                        'waspada',
-                        'Arus berada di bawah batas normal.',
-                        $timestamp,
-                        $lokasi
-                    );
+                    return $this->notif('total_current', $value, 'A', 'waspada', 'Arus berada di bawah batas normal.', $timestamp, $lokasi);
                 }
 
                 if ($value > 10) {
-                    return $this->notif(
-                        'total_current',
-                        $value,
-                        'A',
-                        'bahaya',
-                        'Arus melebihi batas normal.',
-                        $timestamp,
-                        $lokasi
-                    );
+                    return $this->notif('total_current', $value, 'A', 'bahaya', 'Arus melebihi batas normal.', $timestamp, $lokasi);
                 }
                 break;
 
             case 'frecuency':
                 if ($value < 49.5) {
-                    return $this->notif(
-                        'frecuency',
-                        $value,
-                        'Hz',
-                        'waspada',
-                        'Frekuensi berada di bawah batas normal.',
-                        $timestamp,
-                        $lokasi
-                    );
+                    return $this->notif('frecuency', $value, 'Hz', 'waspada', 'Frekuensi berada di bawah batas normal.', $timestamp, $lokasi);
                 }
 
                 if ($value > 50.5) {
-                    return $this->notif(
-                        'frecuency',
-                        $value,
-                        'Hz',
-                        'bahaya',
-                        'Frekuensi melebihi batas normal.',
-                        $timestamp,
-                        $lokasi
-                    );
+                    return $this->notif('frecuency', $value, 'Hz', 'bahaya', 'Frekuensi melebihi batas normal.', $timestamp, $lokasi);
                 }
                 break;
 
             case 'power_factor':
                 if ($value < 0.85) {
-                    return $this->notif(
-                        'power_factor',
-                        $value,
-                        '',
-                        'waspada',
-                        'Power factor berada di bawah batas normal.',
-                        $timestamp,
-                        $lokasi
-                    );
+                    return $this->notif('power_factor', $value, '', 'waspada', 'Power factor berada di bawah batas normal.', $timestamp, $lokasi);
                 }
 
                 if ($value > 1) {
-                    return $this->notif(
-                        'power_factor',
-                        $value,
-                        '',
-                        'bahaya',
-                        'Power factor tidak normal.',
-                        $timestamp,
-                        $lokasi
-                    );
+                    return $this->notif('power_factor', $value, '', 'bahaya', 'Power factor tidak normal.', $timestamp, $lokasi);
                 }
                 break;
         }
@@ -237,14 +207,12 @@ class ListrikController extends Controller
         $timestamp = $data?->time_stamp;
         $lokasi = 'Panel Listrik';
 
-        $notifications = [
-            $this->getNotification('total_voltage', round((float) $totalVoltage, 2), $timestamp, $lokasi),
-            $this->getNotification('total_current', round((float) $totalCurrent, 2), $timestamp, $lokasi),
+        return array_values(array_filter([
+            $this->getNotification('total_voltage', $totalVoltage, $timestamp, $lokasi),
+            $this->getNotification('total_current', $totalCurrent, $timestamp, $lokasi),
             $this->getNotification('frecuency', $data?->frecuency, $timestamp, $lokasi),
             $this->getNotification('power_factor', $data?->power_factor, $timestamp, $lokasi),
-        ];
-
-        return array_values(array_filter($notifications));
+        ]));
     }
 
     public function getTotalVoltage(): JsonResponse
@@ -262,12 +230,7 @@ class ListrikController extends Controller
             'unit' => 'V',
             'value' => round((float) $voltage, 2),
             'timestamp' => $data?->time_stamp,
-            'notification' => $this->getNotification(
-                'total_voltage',
-                round((float) $voltage, 2),
-                $data?->time_stamp,
-                'Panel Listrik'
-            ),
+            'notification' => $this->getNotification('total_voltage', round((float) $voltage, 2), $data?->time_stamp, 'Panel Listrik'),
         ]);
     }
 
@@ -286,12 +249,7 @@ class ListrikController extends Controller
             'unit' => 'A',
             'value' => round((float) $current, 2),
             'timestamp' => $data?->time_stamp,
-            'notification' => $this->getNotification(
-                'total_current',
-                round((float) $current, 2),
-                $data?->time_stamp,
-                'Panel Listrik'
-            ),
+            'notification' => $this->getNotification('total_current', round((float) $current, 2), $data?->time_stamp, 'Panel Listrik'),
         ]);
     }
 
@@ -424,12 +382,7 @@ class ListrikController extends Controller
             'unit' => 'Hz',
             'value' => $data?->frecuency,
             'timestamp' => $data?->time_stamp,
-            'notification' => $this->getNotification(
-                'frecuency',
-                $data?->frecuency,
-                $data?->time_stamp,
-                'Panel Listrik'
-            ),
+            'notification' => $this->getNotification('frecuency', $data?->frecuency, $data?->time_stamp, 'Panel Listrik'),
         ]);
     }
 
@@ -442,12 +395,7 @@ class ListrikController extends Controller
             'unit' => '',
             'value' => $data?->power_factor,
             'timestamp' => $data?->time_stamp,
-            'notification' => $this->getNotification(
-                'power_factor',
-                $data?->power_factor,
-                $data?->time_stamp,
-                'Panel Listrik'
-            ),
+            'notification' => $this->getNotification('power_factor', $data?->power_factor, $data?->time_stamp, 'Panel Listrik'),
         ]);
     }
 
@@ -475,7 +423,7 @@ class ListrikController extends Controller
                 'total_voltage' => round((float) $totalVoltage, 2),
                 'total_current' => round((float) $totalCurrent, 2),
             ],
-            'notifications' => $this->getAllNotifications($data, $totalVoltage, $totalCurrent),
+            'notifications' => $this->getAllNotifications($data, round((float) $totalVoltage, 2), round((float) $totalCurrent, 2)),
         ]);
     }
 
@@ -488,5 +436,14 @@ class ListrikController extends Controller
             'total' => $data->count(),
             'data' => $data,
         ]);
+    }
+
+    private function formatTimestamp($timestamp): ?string
+    {
+        if (!$timestamp) {
+            return null;
+        }
+
+        return Carbon::parse($timestamp)->format('Y-m-d H:i:s');
     }
 }

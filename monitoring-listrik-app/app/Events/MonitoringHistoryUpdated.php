@@ -7,7 +7,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class BiayaDayaUpdated implements ShouldBroadcast
+class MonitoringHistoryUpdated implements ShouldBroadcast
 {
     use Dispatchable, SerializesModels;
 
@@ -20,12 +20,12 @@ class BiayaDayaUpdated implements ShouldBroadcast
 
     public function broadcastOn(): Channel
     {
-        return new Channel('daya.biaya');
+        return new Channel('monitoring.history');
     }
 
     public function broadcastAs(): string
     {
-        return 'daya.biaya.updated';
+        return 'monitoring.history.updated';
     }
 
     public function broadcastWith(): array

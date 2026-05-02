@@ -8,88 +8,159 @@ class IEQService
     {
         $scores = [];
 
-        $scores[] = self::scoreSuhu($data->suhu ?? null);
-        $scores[] = self::scoreKelembapan($data->kelembapan ?? null);
-        $scores[] = self::scorePm25($data->pm25 ?? null);
-        $scores[] = self::scorePm10($data->pm10 ?? null);
-        $scores[] = self::scoreCo($data->gas_co ?? null);
-        $scores[] = self::scoreCo2($data->gas_co2 ?? null);
-        $scores[] = self::scoreCahaya($data->cahaya ?? null);
-        $scores[] = self::scoreKebisingan($data->kebisingan ?? null);
+        $scores['suhu'] = self::scoreSuhu($data?->suhu);
+        $scores['kelembapan'] = self::scoreKelembapan($data?->kelembapan);
+        $scores['pm25'] = self::scorePm25($data?->pm25);
+        $scores['pm10'] = self::scorePm10($data?->pm10);
+        $scores['gas_co'] = self::scoreGasCo($data?->gas_co);
+        $scores['gas_co2'] = self::scoreGasCo2($data?->gas_co2);
+        $scores['tvoc'] = self::scoreTvoc($data?->tvoc);
+        $scores['cahaya'] = self::scoreCahaya($data?->cahaya);
+        $scores['kebisingan'] = self::scoreKebisingan($data?->kebisingan);
 
-        $scores = array_filter($scores, fn ($s) => $s !== null);
+        $validScores = array_filter($scores, function ($score) {
+            return $score !== null;
+        });
 
-        if (count($scores) === 0) {
+        if (count($validScores) === 0) {
             return [
-                'score' => null,
+                'score' => 0,
                 'status' => 'TIDAK ADA DATA',
+                'description' => 'Belum ada data sensor yang dapat dihitung',
+                'details' => $scores,
             ];
         }
 
-        $avg = array_sum($scores) / count($scores);
+        $average = array_sum($validScores) / count($validScores);
 
         return [
-            'score' => round($avg),
-            'status' => self::getStatus($avg),
+            'score' => round($average, 2),
+            'status' => self::getStatus($average),
+            'description' => self::getDescription($average),
+            'details' => $scores,
         ];
     }
 
-    private static function scoreSuhu($v): ?int
+    private static function scoreSuhu($value): ?int
     {
-        if ($v === null) return null;
-        if ($v < 20) return 70;
-        if ($v > 29) return 40;
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value < 20) {
+            return 60;
+        }
+
+        if ($value > 29) {
+            return 40;
+        }
+
         return 100;
     }
 
-    private static function scoreKelembapan($v): ?int
+    private static function scoreKelembapan($value): ?int
     {
-        if ($v === null) return null;
-        if ($v < 40) return 70;
-        if ($v > 60) return 40;
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value < 40) {
+            return 60;
+        }
+
+        if ($value > 60) {
+            return 40;
+        }
+
         return 100;
     }
 
-    private static function scorePm25($v): ?int
+    private static function scorePm25($value): ?int
     {
-        if ($v === null) return null;
-        return $v > 35 ? 40 : 100;
+        if ($value === null) {
+            return null;
+        }
+
+        return $value > 35 ? 40 : 100;
     }
 
-    private static function scorePm10($v): ?int
+    private static function scorePm10($value): ?int
     {
-        if ($v === null) return null;
-        return $v > 70 ? 40 : 100;
+        if ($value === null) {
+            return null;
+        }
+
+        return $value > 70 ? 40 : 100;
     }
 
-    private static function scoreCo($v): ?int
+    private static function scoreGasCo($value): ?int
     {
-        if ($v === null) return null;
-        return $v > 10000 ? 40 : 100;
+        if ($value === null) {
+            return null;
+        }
+
+        return $value > 10000 ? 40 : 100;
     }
 
-    private static function scoreCo2($v): ?int
+    private static function scoreGasCo2($value): ?int
     {
-        if ($v === null) return null;
-        return $v > 1 ? 40 : 100;
+        if ($value === null) {
+            return null;
+        }
+
+        return $value > 1000 ? 40 : 100;
     }
 
-    private static function scoreCahaya($v): ?int
+    private static function scoreTvoc($value): ?int
     {
-        if ($v === null) return null;
-        return $v < 100 ? 70 : 100;
+        if ($value === null) {
+            return null;
+        }
+
+        return $value > 3 ? 40 : 100;
     }
 
-    private static function scoreKebisingan($v): ?int
+    private static function scoreCahaya($value): ?int
     {
-        if ($v === null) return null;
-        return $v > 45 ? 40 : 100;
+        if ($value === null) {
+            return null;
+        }
+
+        return $value < 100 ? 60 : 100;
     }
 
-    private static function getStatus($score): string
+    private static function scoreKebisingan($value): ?int
     {
-        if ($score >= 80) return 'BAIK';
-        if ($score >= 60) return 'KURANG BAIK';
-        return 'BURUK';
+        if ($value === null) {
+            return null;
+        }
+
+        return $value > 45 ? 40 : 100;
+    }
+
+    private static function getStatus(float $score): string
+    {
+        if ($score >= 80) {
+            return 'BAIK';
+        }
+
+        if ($score >= 60) {
+            return 'CUKUP';
+        }
+
+        return 'KURANG BAIK';
+    }
+
+    private static function getDescription(float $score): string
+    {
+        if ($score >= 80) {
+            return 'Kondisi kualitas lingkungan dalam keadaan baik';
+        }
+
+        if ($score >= 60) {
+            return 'Kondisi kualitas lingkungan cukup, namun terdapat beberapa parameter yang perlu diperhatikan';
+        }
+
+        return 'Kondisi kualitas lingkungan kurang baik dan perlu dilakukan tindakan pemeriksaan';
     }
 }

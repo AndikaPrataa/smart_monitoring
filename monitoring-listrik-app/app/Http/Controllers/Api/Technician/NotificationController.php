@@ -4,102 +4,106 @@ namespace App\Http\Controllers\Api\Technician;
 
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
-use App\Events\NotificationUpdated;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class NotificationController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         $user = $request->user();
 
-        $query = Notification::where('assigned_to', $user->id)
-            ->orderBy('timestamp', 'desc');
+        $status = $request->query('status');
 
-        if ($request->status) {
-            if ($request->status === 'aktif') {
+        $query = Notification::where('assigned_to', $user->id)
+            ->orderBy('created_at', 'desc');
+
+        if ($status) {
+            if ($status === 'aktif') {
                 $query->where('status', 'proses');
-            } elseif ($request->status === 'selesai') {
-                $query->where('status', 'selesai');
+            } else {
+                $query->where('status', $status);
             }
-        } else {
-            $query->whereIn('status', ['proses', 'selesai']);
         }
 
-        $data = $query->get()->map(function ($item) {
-            $item->status_asli = $item->status;
-            $item->status_label = $item->status === 'proses'
-                ? 'aktif'
-                : $item->status;
-
-            return $item;
-        });
+        $notifications = $query->get();
 
         return response()->json([
             'success' => true,
             'message' => 'Daftar tugas teknisi berhasil diambil',
-            'data' => $data
+            'total' => $notifications->count(),
+            'data' => $notifications,
         ]);
     }
 
-    public function show(Request $request, $id)
+    public function show(Request $request, $id): JsonResponse
     {
-        $notification = Notification::where('assigned_to', $request->user()->id)
-            ->where('id', $id)
-            ->firstOrFail();
+        $user = $request->user();
 
-        $notification->status_asli = $notification->status;
-        $notification->status_label = $notification->status === 'proses'
-            ? 'aktif'
-            : $notification->status;
+        $notification = Notification::where('id', $id)
+            ->where('assigned_to', $user->id)
+            ->first();
+
+        if (!$notification) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tugas tidak ditemukan atau bukan milik teknisi ini',
+            ], 404);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Detail tugas berhasil diambil',
-            'data' => $notification
+            'message' => 'Detail tugas teknisi berhasil diambil',
+            'data' => $notification,
         ]);
     }
 
-    public function complete(Request $request, $id)
+    public function complete(Request $request, $id): JsonResponse
     {
-        $request->validate([
-            'field_photo' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+        $user = $request->user();
+
+        $validated = $request->validate([
             'action_taken' => 'required|string',
             'additional_note' => 'nullable|string',
+            'field_photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        $notification = Notification::where('assigned_to', $request->user()->id)
-            ->where('status', 'proses')
-            ->where('id', $id)
-            ->firstOrFail();
+        $notification = Notification::where('id', $id)
+            ->where('assigned_to', $user->id)
+            ->first();
 
-        if ($notification->field_photo && Storage::disk('public')->exists($notification->field_photo)) {
-            Storage::disk('public')->delete($notification->field_photo);
+        if (!$notification) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tugas tidak ditemukan atau bukan milik teknisi ini',
+            ], 404);
         }
 
-        $photoPath = $request->file('field_photo')
-            ->store('notification_photos', 'public');
+        if ($notification->status === 'selesai') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tugas ini sudah diselesaikan sebelumnya',
+            ], 422);
+        }
+
+        $photoPath = $notification->field_photo;
+
+        if ($request->hasFile('field_photo')) {
+            $photoPath = $request->file('field_photo')->store('field-photos', 'public');
+        }
 
         $notification->update([
             'status' => 'selesai',
             'completed_at' => now(),
             'field_photo' => $photoPath,
-            'action_taken' => $request->action_taken,
-            'additional_note' => $request->additional_note,
+            'action_taken' => $validated['action_taken'],
+            'additional_note' => $validated['additional_note'] ?? null,
         ]);
-
-        $notification->refresh();
-
-        $notification->status_asli = $notification->status;
-        $notification->status_label = 'selesai';
-
-        event(new NotificationUpdated($notification));
 
         return response()->json([
             'success' => true,
-            'message' => 'Penanganan berhasil dikonfirmasi',
-            'data' => $notification
+            'message' => 'Tugas berhasil diselesaikan',
+            'data' => $notification,
         ]);
     }
 }
