@@ -19,7 +19,8 @@ class AuthController
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
-                'email' => 'required|string|email|max:255|unique:users',
+                'email' => 'required|string|email|max:255|unique:users,email',
+                'nip' => 'required|string|max:50|unique:users,nip',
                 'password' => 'required|string|min:6|confirmed',
                 'role' => 'nullable|in:admin,teknisi',
             ]);
@@ -27,6 +28,7 @@ class AuthController
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
+                'nip' => $validated['nip'],
                 'password' => Hash::make($validated['password']),
                 'role' => $validated['role'] ?? 'teknisi',
             ]);
@@ -40,6 +42,7 @@ class AuthController
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'nip' => $user->nip,
                     'role' => $user->role,
                     'token' => $token,
                     'token_type' => 'Bearer',
@@ -84,6 +87,7 @@ class AuthController
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'nip' => $user->nip,
                     'role' => $user->role,
                     'token' => $token,
                     'token_type' => 'Bearer',
@@ -136,6 +140,7 @@ class AuthController
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'nip' => $user->nip,
                 'role' => $user->role,
                 'created_at' => $user->created_at,
             ],

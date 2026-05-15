@@ -128,4 +128,81 @@ class AdminUserController extends Controller
             'data' => $teknisi,
         ]);
     }
+
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User tidak ditemukan',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+            'nip' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('users', 'nip')->ignore($user->id),
+            ],
+            'password' => 'nullable|string|min:6',
+            'role' => [
+                'required',
+                Rule::in(['admin', 'teknisi']),
+            ],
+        ]);
+
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+        $user->nip = $validated['nip'] ?? null;
+        $user->role = $validated['role'];
+
+        if (!empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
+        }
+
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User berhasil diperbarui',
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'nip' => $user->nip,
+                'role' => $user->role,
+                'updated_at' => $user->updated_at,
+            ],
+        ]);
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User tidak ditemukan',
+            ], 404);
+        }
+
+        $user->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User berhasil dihapus',
+        ]);
+    }
 }
