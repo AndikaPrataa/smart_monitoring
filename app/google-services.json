@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "629361269868",
+    "project_id": "energymonitoringapp-dc71e",
+    "storage_bucket": "energymonitoringapp-dc71e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:629361269868:android:c7da9fb238b93e18d30c49",
+        "android_client_info": {
+          "package_name": "com.example.energymonitoringapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC-nLm9M52VHkvD7CX9HrK8xQLzEc9wCTI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
